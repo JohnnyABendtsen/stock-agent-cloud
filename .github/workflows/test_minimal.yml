@@ -3,8 +3,12 @@ on:
   schedule:
     - cron: "0 5 * * *"
   workflow_dispatch: {}
+concurrency:
+  group: update-data
+  cancel-in-progress: false
 jobs:
   hello:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - run: echo "hello"
