@@ -1,0 +1,95 @@
+{
+  "final": {
+    "moat": 50.0,
+    "management": 0.0,
+    "financial": 0.0,
+    "valuation": 50.0
+  },
+  "moat": {
+    "gross_margin": {
+      "ge60": 2.0,
+      "ge50": 2.0,
+      "ge40": 1.5,
+      "ge30": 1.5,
+      "ge20": 1.0,
+      "ge10": 1.0
+    },
+    "margin_trend": {
+      "improving": 0.0,
+      "declining": 0.0
+    },
+    "roe_consistency": {
+      "lt3": 0.0,
+      "lt6": 0.0,
+      "lt10": 0.0,
+      "lt15": 0.0,
+      "lt20": 0.0
+    }
+  },
+  "management": {
+    "insider_ownership": {
+      "ge30": 1.5,
+      "ge15": 1.0,
+      "ge5": 0.5,
+      "ge1": 0.0
+    },
+    "buyback_trend": {
+      "decreasing": 1.0,
+      "stable": 0.0,
+      "increasing": -1.0
+    },
+    "debt_trend": {
+      "decreasing": 1.0,
+      "stable": 0.0,
+      "increasing": -1.0
+    }
+  },
+  "financial": {
+    "roe_5yr": {
+      "ge25": 2.5,
+      "ge20": 2.0,
+      "ge15": 1.5,
+      "ge10": 1.0,
+      "ge5": 0.5
+    },
+    "debt_equity": {
+      "lt20": 3.0,
+      "lt50": 2.0,
+      "lt100": 1.0,
+      "lt200": 0.0
+    },
+    "fcf_yield": {
+      "ge10": 2.0,
+      "ge7": 1.5,
+      "ge5": 1.0,
+      "ge3": 0.0,
+      "ge1": 0.0
+    },
+    "earnings_growth": {
+      "ge20": 2.5,
+      "ge15": 2.0,
+      "ge10": 1.5,
+      "ge5": 1.0,
+      "ge0": 0.0
+    }
+  },
+  "valuation": {
+    "pe_label": {
+      "cheap": 2.0,
+      "mid": 1.0,
+      "expensive": 0.0
+    },
+    "pb": {
+      "lt1": 3.0,
+      "lt2": 2.0,
+      "lt3": 1.0,
+      "lt5": 0.0
+    },
+    "fcf_yield": {
+      "ge8": 3.0,
+      "ge5": 2.0,
+      "ge3": 1.0,
+      "ge1": 0.0
+    }
+  }
+}

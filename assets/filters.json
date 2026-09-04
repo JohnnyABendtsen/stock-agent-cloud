@@ -1,0 +1,111 @@
+{
+  "rating_min": {
+    "enabled": false,
+    "value": 7.0
+  },
+  "pe_max": {
+    "enabled": false,
+    "value": 12.0
+  },
+  "ps_max": {
+    "enabled": false,
+    "value": 999.0
+  },
+  "pb_max": {
+    "enabled": false,
+    "value": 999.0
+  },
+  "eps_min": {
+    "enabled": false,
+    "value": 0.0
+  },
+  "dividend_yield_min": {
+    "enabled": true,
+    "value": 1.0
+  },
+  "gross_margin_min": {
+    "enabled": true,
+    "value": 15.0
+  },
+  "roe_5yr_min": {
+    "enabled": false,
+    "value": -1.0
+  },
+  "roe_consistency_max": {
+    "enabled": false,
+    "value": 97.0
+  },
+  "debt_equity_max": {
+    "enabled": false,
+    "value": 998.0
+  },
+  "fcf_yield_min": {
+    "enabled": false,
+    "value": 5.0
+  },
+  "earnings_growth_min": {
+    "enabled": false,
+    "value": 0.0
+  },
+  "revenue_growth_min": {
+    "enabled": false,
+    "value": 2.0
+  },
+  "insider_min": {
+    "enabled": false,
+    "value": 0.0
+  },
+  "margin_trend": {
+    "enabled": false,
+    "values": [
+      "improving"
+    ]
+  },
+  "buyback_trend": {
+    "enabled": false,
+    "values": [
+      "decreasing",
+      "stable"
+    ]
+  },
+  "debt_trend": {
+    "enabled": false,
+    "values": [
+      "decreasing",
+      "stable"
+    ]
+  },
+  "pe_label": {
+    "enabled": false,
+    "values": [
+      "Cheap"
+    ]
+  },
+  "pe_label_1": {
+    "enabled": true,
+    "values": [
+      "Cheap"
+    ]
+  },
+  "industry": {
+    "enabled": false,
+    "values": [],
+    "hide_blank": true
+  },
+  "exchange": {
+    "enabled": true,
+    "values": [
+      "CPH",
+      "OSL",
+      "STO"
+    ],
+    "hide_blank": false
+  },
+  "sector": {
+    "enabled": false,
+    "values": [
+      "Real Estate"
+    ],
+    "hide_blank": false
+  }
+}
