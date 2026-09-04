@@ -32,7 +32,7 @@ modifies it.
 
 3. **Deploy the dashboard** on [share.streamlit.io](https://share.streamlit.io):
    - Sign in with the same GitHub account.
-   - "New app" → pick the `stock-agent-cloud` repo, branch `main`, file `app.py`.
+   - "New app" → pick the `stock-agent-cloud` repo, branch `master`, file `app.py`.
    - Deploy. You'll get a public URL anyone can open.
 
 4. **Turn on the scheduled update**: it's already in the repo
