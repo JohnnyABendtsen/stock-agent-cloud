@@ -71,36 +71,37 @@ def to_dataframe(rows: list[dict]) -> pd.DataFrame:
 
 
 def style_table(df: pd.DataFrame):
-    def color_pe_val(val):
-        return f"background-color: {fmt._LABEL_COLORS.get(val, '')}" if val in fmt._LABEL_COLORS else ""
+    """Vectorized cell coloring — np.select evaluates each column's condition in
+    one C-level pass instead of calling a Python function per cell. A naive
+    Styler.map() here took over a minute on the full ~5,000-row table (tested
+    live and killed it); this renders instantly at the same row counts."""
+    import numpy as np
 
-    def color_trend(val):
-        return f"background-color: {fmt._TREND_COLORS.get(val, '')}" if val in fmt._TREND_COLORS else ""
+    def label_colors(col: pd.Series) -> "np.ndarray":
+        conditions = [col == label for label in fmt._LABEL_COLORS]
+        choices = [f"background-color: {color}" for color in fmt._LABEL_COLORS.values()]
+        return np.select(conditions, choices, default="")
 
-    def color_rating(val):
-        try:
-            r = float(val)
-        except (TypeError, ValueError):
-            return ""
-        if r >= 7:
-            return "background-color: #c6efce"
-        if r >= 4:
-            return "background-color: #ffeb9c"
-        return "background-color: #ffc7ce"
+    def trend_colors(col: pd.Series) -> "np.ndarray":
+        conditions = [col == trend for trend in fmt._TREND_COLORS]
+        choices = [f"background-color: {color}" for color in fmt._TREND_COLORS.values()]
+        return np.select(conditions, choices, default="")
+
+    def rating_colors(col: pd.Series) -> "np.ndarray":
+        r = pd.to_numeric(col, errors="coerce")
+        conditions = [r >= 7, r >= 4]
+        choices = ["background-color: #c6efce", "background-color: #ffeb9c"]
+        return np.select(conditions, choices, default="background-color: #ffc7ce")
 
     styler = df.style
-    if "PE Val" in df.columns:
-        styler = styler.map(color_pe_val, subset=["PE Val"])
-    if "PE Val 1" in df.columns:
-        styler = styler.map(color_pe_val, subset=["PE Val 1"])
-    if "Margin Trend" in df.columns:
-        styler = styler.map(color_trend, subset=["Margin Trend"])
-    if "Buyback Trend" in df.columns:
-        styler = styler.map(color_trend, subset=["Buyback Trend"])
-    if "Debt Trend" in df.columns:
-        styler = styler.map(color_trend, subset=["Debt Trend"])
+    for col_name in ("PE Val", "PE Val 1"):
+        if col_name in df.columns:
+            styler = styler.apply(label_colors, subset=[col_name])
+    for col_name in ("Margin Trend", "Buyback Trend", "Debt Trend"):
+        if col_name in df.columns:
+            styler = styler.apply(trend_colors, subset=[col_name])
     if "Rating" in df.columns:
-        styler = styler.map(color_rating, subset=["Rating"])
+        styler = styler.apply(rating_colors, subset=["Rating"])
     return styler
 
 
@@ -137,7 +138,7 @@ def main() -> None:
 
     df = to_dataframe(visible)
     df = df.drop(columns=["Ticker"], errors="ignore")  # hidden in the desktop app too
-    st.dataframe(style_table(df), use_container_width=True, height=700)
+    st.dataframe(style_table(df), width="stretch", height=700)
 
     st.download_button(
         "Export to Excel (CSV)",
