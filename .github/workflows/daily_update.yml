@@ -1,13 +1,10 @@
-name: Test Minimal
+name: Update stock data
 
 on:
   schedule:
-    # 05:00 UTC daily — well before European market open, keeps runs off the
-    # busiest window on GitHub's shared runners.
     - cron: "0 5 * * *"
-  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+  workflow_dispatch: {}
 
-# Only one update at a time; a new scheduled run won't queue up behind a slow one.
 concurrency:
   group: update-data
   cancel-in-progress: false
@@ -15,7 +12,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 180   # full Europe run has taken up to ~2h; fail instead of hanging forever
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
