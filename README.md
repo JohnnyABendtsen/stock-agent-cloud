@@ -11,7 +11,7 @@ modifies it.
   app's "Update data" button, as a plain script (no GUI). Run by GitHub Actions
   on a schedule so no one's PC needs to be on.
 - `app.py` — the Streamlit web dashboard everyone visits in a browser.
-- `.github/workflows/update_data.yml` — runs `update_data.py` daily at 05:00 UTC,
+- `.github/workflows/daily_update.yml` — runs `update_data.py` daily at 05:00 UTC,
   then commits the refreshed `data/stocks.db` back into the repo.
 
 ## What's left to do (needs your GitHub login — I can't do this part)
@@ -36,7 +36,7 @@ modifies it.
    - Deploy. You'll get a public URL anyone can open.
 
 4. **Turn on the scheduled update**: it's already in the repo
-   (`.github/workflows/update_data.yml`) — it activates automatically once the
+   (`.github/workflows/daily_update.yml`) — it activates automatically once the
    repo is pushed to GitHub. You can also trigger it manually right away from
    the repo's **Actions** tab ("Run workflow") instead of waiting for 05:00 UTC.
 
