@@ -9,6 +9,9 @@ concurrency:
   group: update-data
   cancel-in-progress: false
 
+permissions:
+  contents: write   # GITHUB_TOKEN is read-only by default; the commit-back step needs write
+
 jobs:
   update:
     runs-on: ubuntu-latest
