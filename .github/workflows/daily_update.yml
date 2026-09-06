@@ -38,4 +38,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/stocks.db assets/last_downloaded_markets.json
           git diff --cached --quiet && echo "No changes to commit" || git commit -m "Automated data update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # The run can take hours; something else may have pushed in the meantime.
+          # Merge in anything new, preferring our just-fetched data/stocks.db on conflict.
+          for i in 1 2 3; do
+            git fetch origin master
+            git merge origin/master --no-edit -X ours && break
+            git merge --abort || true
+            sleep 5
+          done
           git push
