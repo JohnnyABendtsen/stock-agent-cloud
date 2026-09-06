@@ -138,7 +138,22 @@ def main() -> None:
 
     df = to_dataframe(visible)
     df = df.drop(columns=["Ticker"], errors="ignore")  # hidden in the desktop app too
-    st.dataframe(style_table(df), width="stretch", height=700)
+
+    # Compact, fixed column widths so as many fields as possible fit on screen at
+    # once — st.dataframe still scrolls horizontally on its own for the rest
+    # (drag the bar at the bottom of the table, or shift+scroll with a mouse wheel).
+    _WIDE_COLS = {"Name", "Industry"}
+    column_config = {
+        col: st.column_config.Column(width="medium" if col in _WIDE_COLS else "small")
+        for col in df.columns
+    }
+    st.dataframe(
+        style_table(df),
+        width="stretch",
+        height=700,
+        column_config=column_config,
+    )
+    st.caption("↔ Table scrolls horizontally — drag the bottom scrollbar or shift+scroll to see more columns.")
 
     st.download_button(
         "Export to Excel (CSV)",
