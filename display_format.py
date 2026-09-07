@@ -67,6 +67,29 @@ _TREND_COLORS = {
 }
 
 
+def _format_billions(val) -> str:
+    """Exact port of the desktop app's 5-significant-figure scheme for Market Cap/FCF
+    (ui/stock_table.py:_fmt) — e.g. 16.449, 1.2345, 128.65, 00005 (5.0 exactly).
+    Kept as a STRING (like the desktop) rather than a rounded float so the two
+    apps show byte-identical numbers; this one column sorts alphabetically in
+    the web table as a result — every other numeric column stays a real float
+    (formatted via NumberColumn) so it sorts correctly."""
+    v = float(val) / 1e9  # always billions
+    if v == 0:
+        return "00000"
+    sign = "-" if v < 0 else ""
+    av = abs(v)
+    int_part = int(av)
+    int_digits = max(1, len(str(int_part)))
+    dec_digits = max(0, 5 - int_digits)
+    if dec_digits > 0:
+        formatted = f"{av:.{dec_digits}f}"
+        if float(formatted) == float(int_part):
+            return f"{sign}{int_part:05d}"
+        return f"{sign}{formatted}"
+    return f"{sign}{int_part}"
+
+
 def fmt_value(key: str, val):
     """Return the display-ready value for one cell — same rules as the desktop app."""
     if val is None:
@@ -78,7 +101,7 @@ def fmt_value(key: str, val):
             return val
     if key in ("market_cap", "fcf"):
         try:
-            return round(float(val) / 1e9, 2)  # always billions
+            return _format_billions(val)
         except (TypeError, ValueError):
             return val
     if key in _ROUND2_COLS:

@@ -143,10 +143,19 @@ def main() -> None:
     # once — st.dataframe still scrolls horizontally on its own for the rest
     # (drag the bar at the bottom of the table, or shift+scroll with a mouse wheel).
     _WIDE_COLS = {"Name", "Industry"}
-    column_config = {
-        col: st.column_config.Column(width="medium" if col in _WIDE_COLS else "small")
-        for col in df.columns
+    # Labels for columns that must always show exactly 2 decimals, matching the
+    # desktop app (fmt._ROUND2_COLS + fmt._PCT_COLS, translated key -> label).
+    _key_to_label = dict(fmt.COLUMNS)
+    _two_decimal_labels = {
+        _key_to_label[k] for k in (fmt._ROUND2_COLS | fmt._PCT_COLS) if k in _key_to_label
     }
+    column_config = {}
+    for col in df.columns:
+        width = "medium" if col in _WIDE_COLS else "small"
+        if col in _two_decimal_labels:
+            column_config[col] = st.column_config.NumberColumn(width=width, format="%.2f")
+        else:
+            column_config[col] = st.column_config.Column(width=width)
     st.dataframe(
         style_table(df),
         width="stretch",
