@@ -139,9 +139,34 @@ def main() -> None:
     df = to_dataframe(visible)
     df = df.drop(columns=["Ticker"], errors="ignore")  # hidden in the desktop app too
 
-    # Compact, fixed column widths so as many fields as possible fit on screen at
-    # once — st.dataframe still scrolls horizontally on its own for the rest
-    # (drag the bar at the bottom of the table, or shift+scroll with a mouse wheel).
+    # Column picker — no reliance on horizontal scroll (not discoverable for
+    # everyone: no visible drag-handle, and the gesture that works, shift+wheel,
+    # isn't obvious). Default to a compact set that fits on screen with zero
+    # scrolling; anyone can add more columns back, or show everything.
+    _DEFAULT_COLS = [
+        "Name", "Industry", "Exchange", "Currency", "Rating",
+        "PE", "PE Val", "Market Cap", "Div %", "D/E", "ROE 5yr %",
+    ]
+    all_cols = list(df.columns)
+    if "col_picker" not in st.session_state:
+        st.session_state.col_picker = [c for c in _DEFAULT_COLS if c in all_cols]
+
+    col1, col2 = st.columns([5, 1])
+    with col2:
+        st.write("")  # vertical spacer to align the button with the multiselect
+        if st.button("Show all columns"):
+            st.session_state.col_picker = all_cols
+    with col1:
+        picked = st.multiselect("Columns to show", options=all_cols, key="col_picker")
+
+    if not picked:
+        picked = all_cols
+    df = df[picked]
+
+    # Fixed column widths so whatever's picked lines up neatly — no horizontal
+    # scroll needed for the default set; if more columns are added than fit,
+    # the table still scrolls (shift+wheel / trackpad swipe), it's just no
+    # longer the only way to see things.
     _WIDE_COLS = {"Name", "Industry"}
     # Labels for columns that must always show exactly 2 decimals, matching the
     # desktop app (fmt._ROUND2_COLS + fmt._PCT_COLS, translated key -> label).
@@ -158,11 +183,10 @@ def main() -> None:
             column_config[col] = st.column_config.Column(width=width)
     st.dataframe(
         style_table(df),
-        width="content",   # natural width (sum of columns) -> real horizontal scrollbar;
-        height=700,        # "stretch" was squeezing all 30+ columns to fit the viewport
+        width="stretch" if len(picked) <= len(_DEFAULT_COLS) else "content",
+        height=700,
         column_config=column_config,
     )
-    st.caption("↔ Table scrolls horizontally — drag the bottom scrollbar or shift+scroll to see more columns.")
 
     st.download_button(
         "Export to Excel (CSV)",
