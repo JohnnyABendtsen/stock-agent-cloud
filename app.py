@@ -130,7 +130,7 @@ def main() -> None:
 
     total = len(rows)
     shown = len(visible)
-    last_updated = rows[0].get("last_updated", "") if rows else ""
+    last_updated = max((r.get("last_updated") or "" for r in rows), default="")
     if shown < total:
         st.caption(f"Showing {shown} of {total} stocks ({total - shown} hidden by filters) — last updated: {last_updated}")
     else:
@@ -158,8 +158,8 @@ def main() -> None:
             column_config[col] = st.column_config.Column(width=width)
     st.dataframe(
         style_table(df),
-        width="stretch",
-        height=700,
+        width="content",   # natural width (sum of columns) -> real horizontal scrollbar;
+        height=700,        # "stretch" was squeezing all 30+ columns to fit the viewport
         column_config=column_config,
     )
     st.caption("↔ Table scrolls horizontally — drag the bottom scrollbar or shift+scroll to see more columns.")
