@@ -139,54 +139,68 @@ def main() -> None:
     df = to_dataframe(visible)
     df = df.drop(columns=["Ticker"], errors="ignore")  # hidden in the desktop app too
 
-    # Column picker — no reliance on horizontal scroll (not discoverable for
-    # everyone: no visible drag-handle, and the gesture that works, shift+wheel,
-    # isn't obvious). Default to a compact set that fits on screen with zero
-    # scrolling; anyone can add more columns back, or show everything.
-    _DEFAULT_COLS = [
-        "Name", "Industry", "Exchange", "Currency", "Rating",
-        "PE", "PE Val", "Market Cap", "Div %", "D/E", "ROE 5yr %",
-    ]
-    all_cols = list(df.columns)
-    if "col_picker" not in st.session_state:
-        st.session_state.col_picker = [c for c in _DEFAULT_COLS if c in all_cols]
+    # Plain HTML table with narrow (content-width) columns and an always-visible,
+    # explicitly styled horizontal scrollbar — st.dataframe's own grid component
+    # only scrolls via shift+wheel with no visible drag handle, which wasn't
+    # usable. Trade-off: no click-to-sort-by-column here (unlike the desktop
+    # app) since this is a static table, not the interactive grid widget.
+    #
+    # Paginated (fixed page size) rather than rendering all rows as HTML at
+    # once — tested and confirmed: the full ~5,400-row table as raw HTML froze
+    # the browser tab solid (even `document.title` stopped responding for 45s+).
+    # glide-data-grid (st.dataframe) avoids this via virtualization; a plain
+    # HTML table has no such thing, so row count must stay small per render.
+    _PAGE_SIZE = 50
+    n_pages = max(1, -(-len(df) // _PAGE_SIZE))  # ceil div
+    if "stock_page" not in st.session_state:
+        st.session_state.stock_page = 1
+    st.session_state.stock_page = min(st.session_state.stock_page, n_pages)
 
-    col1, col2 = st.columns([5, 1])
-    with col2:
-        st.write("")  # vertical spacer to align the button with the multiselect
-        if st.button("Show all columns"):
-            st.session_state.col_picker = all_cols
-    with col1:
-        picked = st.multiselect("Columns to show", options=all_cols, key="col_picker")
+    pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
+    with pcol1:
+        if st.button("◀ Previous", disabled=st.session_state.stock_page <= 1):
+            st.session_state.stock_page -= 1
+    with pcol3:
+        if st.button("Next ▶", disabled=st.session_state.stock_page >= n_pages):
+            st.session_state.stock_page += 1
+    with pcol2:
+        st.markdown(
+            f"<div style='text-align:center'>Page {st.session_state.stock_page} of {n_pages} "
+            f"({len(df)} rows, {_PAGE_SIZE}/page)</div>",
+            unsafe_allow_html=True,
+        )
 
-    if not picked:
-        picked = all_cols
-    df = df[picked]
+    start = (st.session_state.stock_page - 1) * _PAGE_SIZE
+    page_df = df.iloc[start:start + _PAGE_SIZE]
 
-    # Fixed column widths so whatever's picked lines up neatly — no horizontal
-    # scroll needed for the default set; if more columns are added than fit,
-    # the table still scrolls (shift+wheel / trackpad swipe), it's just no
-    # longer the only way to see things.
-    _WIDE_COLS = {"Name", "Industry"}
-    # Labels for columns that must always show exactly 2 decimals, matching the
-    # desktop app (fmt._ROUND2_COLS + fmt._PCT_COLS, translated key -> label).
-    _key_to_label = dict(fmt.COLUMNS)
-    _two_decimal_labels = {
-        _key_to_label[k] for k in (fmt._ROUND2_COLS | fmt._PCT_COLS) if k in _key_to_label
-    }
-    column_config = {}
-    for col in df.columns:
-        width = "medium" if col in _WIDE_COLS else "small"
-        if col in _two_decimal_labels:
-            column_config[col] = st.column_config.NumberColumn(width=width, format="%.2f")
-        else:
-            column_config[col] = st.column_config.Column(width=width)
-    st.dataframe(
-        style_table(df),
-        width="stretch" if len(picked) <= len(_DEFAULT_COLS) else "content",
-        height=700,
-        column_config=column_config,
+    html_table = style_table(page_df).format(na_rep="").hide(axis="index").to_html()
+    st.markdown(
+        """
+        <style>
+        .stock-table-wrap {
+            overflow-x: scroll;
+            overflow-y: auto;
+            max-height: 700px;
+            border: 1px solid #ddd;
+        }
+        .stock-table-wrap::-webkit-scrollbar { height: 16px; }
+        .stock-table-wrap::-webkit-scrollbar-track { background: #f0f0f0; }
+        .stock-table-wrap::-webkit-scrollbar-thumb {
+            background: #888; border-radius: 8px; border: 3px solid #f0f0f0;
+        }
+        .stock-table-wrap::-webkit-scrollbar-thumb:hover { background: #555; }
+        .stock-table-wrap table { border-collapse: collapse; font-size: 13px; width: auto; }
+        .stock-table-wrap th, .stock-table-wrap td {
+            padding: 4px 8px; white-space: nowrap; border-bottom: 1px solid #eee; text-align: left;
+        }
+        .stock-table-wrap th {
+            position: sticky; top: 0; background: #fff; z-index: 1; border-bottom: 2px solid #ccc;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
+    st.markdown(f'<div class="stock-table-wrap">{html_table}</div>', unsafe_allow_html=True)
 
     st.download_button(
         "Export to Excel (CSV)",
