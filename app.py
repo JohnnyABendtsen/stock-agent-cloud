@@ -173,29 +173,72 @@ def main() -> None:
     start = (st.session_state.stock_page - 1) * _PAGE_SIZE
     page_df = df.iloc[start:start + _PAGE_SIZE]
 
-    html_table = style_table(page_df).format(na_rep="").hide(axis="index").to_html()
+    # Explicit 2-decimal format per column — lost when switching off
+    # st.dataframe's NumberColumn(format="%.2f"); pandas' default to_html()
+    # otherwise shows up to 6 decimals (e.g. "10.000000" instead of "10.00").
+    # Same column set already verified against the desktop app earlier
+    # (display_format._ROUND2_COLS | _PCT_COLS, translated key -> label).
+    _key_to_label = dict(fmt.COLUMNS)
+    _two_decimal_labels = {
+        _key_to_label[k] for k in (fmt._ROUND2_COLS | fmt._PCT_COLS) if k in _key_to_label
+    }
+    fmt_map = {col: "{:.2f}" for col in page_df.columns if col in _two_decimal_labels}
+    html_table = style_table(page_df).format(fmt_map, na_rep="").hide(axis="index").to_html()
+
+    # Fixed pixel widths per column, matching the desktop app's column widths
+    # exactly (ui/stock_table.py: _FIXED_48=48px, roe_consistency/insider=65px,
+    # name/industry=150px, market_cap/trend/label cols=57px) — content that's
+    # too long to fit is clipped with an ellipsis instead of forcing the
+    # column (and the whole table) wider, same as the desktop's Fixed resize
+    # mode. Built from df.columns (fixed, known order) via nth-child, so it
+    # doesn't depend on guessing pixel position by hand.
+    _W48 = {"PE", "PE0", "PE1", "Rating", "Currency", "Exchange", "Div %", "Div",
+            "FCF %", "D/E", "FCF", "ROE 5yr %", "EPS Growth 5yr %", "Rev Growth 5yr %",
+            "Gross Margin %", "Moat Score", "Mgmt Score", "Financial Score", "Valuation Score"}
+    _W65 = {"ROE Consistency", "Insider Own. %"}
+    _W150 = {"Name", "Industry"}
+    _W57 = {"Market Cap", "Margin Trend", "PE Val", "PE Val 1", "Buyback Trend", "Debt Trend"}
+    _DEFAULT_W = 70  # PS, PB, EPS, and anything else not called out above
+    _W_UPDATED = 170  # timestamp needs more room than the default
+
+    def _col_width(label: str) -> int:
+        if label in _W48: return 48
+        if label in _W65: return 65
+        if label in _W150: return 150
+        if label in _W57: return 57
+        if label == "Updated": return _W_UPDATED
+        return _DEFAULT_W
+
+    col_rules = "\n".join(
+        f'.stock-table-wrap th:nth-child({i}), .stock-table-wrap td:nth-child({i}) '
+        f'{{ width: {_col_width(col)}px; max-width: {_col_width(col)}px; }}'
+        for i, col in enumerate(page_df.columns, start=1)
+    )
+
     st.markdown(
-        """
+        f"""
         <style>
-        .stock-table-wrap {
+        .stock-table-wrap {{
             overflow-x: scroll;
             overflow-y: auto;
             max-height: 700px;
             border: 1px solid #ddd;
-        }
-        .stock-table-wrap::-webkit-scrollbar { height: 16px; }
-        .stock-table-wrap::-webkit-scrollbar-track { background: #f0f0f0; }
-        .stock-table-wrap::-webkit-scrollbar-thumb {
+        }}
+        .stock-table-wrap::-webkit-scrollbar {{ height: 16px; }}
+        .stock-table-wrap::-webkit-scrollbar-track {{ background: #f0f0f0; }}
+        .stock-table-wrap::-webkit-scrollbar-thumb {{
             background: #888; border-radius: 8px; border: 3px solid #f0f0f0;
-        }
-        .stock-table-wrap::-webkit-scrollbar-thumb:hover { background: #555; }
-        .stock-table-wrap table { border-collapse: collapse; font-size: 13px; width: auto; }
-        .stock-table-wrap th, .stock-table-wrap td {
+        }}
+        .stock-table-wrap::-webkit-scrollbar-thumb:hover {{ background: #555; }}
+        .stock-table-wrap table {{ border-collapse: collapse; font-size: 13px; width: auto; table-layout: fixed; }}
+        .stock-table-wrap th, .stock-table-wrap td {{
             padding: 4px 8px; white-space: nowrap; border-bottom: 1px solid #eee; text-align: left;
-        }
-        .stock-table-wrap th {
+            overflow: hidden; text-overflow: ellipsis;
+        }}
+        .stock-table-wrap th {{
             position: sticky; top: 0; background: #fff; z-index: 1; border-bottom: 2px solid #ccc;
-        }
+        }}
+        {col_rules}
         </style>
         """,
         unsafe_allow_html=True,
