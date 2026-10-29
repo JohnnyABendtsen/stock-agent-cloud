@@ -185,35 +185,52 @@ def main() -> None:
     fmt_map = {col: "{:.2f}" for col in page_df.columns if col in _two_decimal_labels}
     html_table = style_table(page_df).format(fmt_map, na_rep="").hide(axis="index").to_html()
 
-    # Fixed pixel widths per column, matching the desktop app's column widths
-    # exactly (ui/stock_table.py: _FIXED_48=48px, roe_consistency/insider=65px,
-    # name/industry=150px, market_cap/trend/label cols=57px) — content that's
-    # too long to fit is clipped with an ellipsis instead of forcing the
-    # column (and the whole table) wider, same as the desktop's Fixed resize
-    # mode. Built from df.columns (fixed, known order) via nth-child, so it
-    # doesn't depend on guessing pixel position by hand.
-    _W48 = {"PE", "PE0", "PE1", "Rating", "Currency", "Exchange", "Div %", "Div",
-            "FCF %", "D/E", "FCF", "ROE 5yr %", "EPS Growth 5yr %", "Rev Growth 5yr %",
-            "Gross Margin %", "Moat Score", "Mgmt Score", "Financial Score", "Valuation Score"}
-    _W65 = {"ROE Consistency", "Insider Own. %"}
+    # Fixed pixel widths per column — content too long to fit is clipped with
+    # an ellipsis instead of forcing the column (and the whole table) wider,
+    # same as the desktop's Fixed column-resize mode. Built from df.columns
+    # (fixed, known order), so it doesn't depend on guessing pixel position
+    # by hand.
+    # Every genuine number field gets the exact same width — PS/PB/EPS and
+    # ROE Consistency/Insider Own. were in their own (narrower/wider) groups
+    # before, which visibly broke the grid's alignment; user caught it on a
+    # screenshot. Text/label columns (Cheap/Mid/Expensive, stable/improving/
+    # declining) stay in their own slightly wider group since they hold words,
+    # not numbers.
+    _W48 = {
+        "PE", "PE0", "PE1", "Rating", "Currency", "Exchange", "Div %", "Div",
+        "FCF %", "D/E", "FCF", "ROE 5yr %", "EPS Growth 5yr %", "Rev Growth 5yr %",
+        "Gross Margin %", "Moat Score", "Mgmt Score", "Financial Score", "Valuation Score",
+        "PS", "PB", "EPS", "ROE Consistency", "Insider Own. %", "Market Cap",
+    }
     _W150 = {"Name", "Industry"}
-    _W57 = {"Market Cap", "Margin Trend", "PE Val", "PE Val 1", "Buyback Trend", "Debt Trend"}
-    _DEFAULT_W = 70  # PS, PB, EPS, and anything else not called out above
+    _W57 = {"Margin Trend", "PE Val", "PE Val 1", "Buyback Trend", "Debt Trend"}
+    _DEFAULT_W = 48  # fall back to the same number-field width, not a guess
     _W_UPDATED = 170  # timestamp needs more room than the default
 
     def _col_width(label: str) -> int:
         if label in _W48: return 48
-        if label in _W65: return 65
         if label in _W150: return 150
         if label in _W57: return 57
         if label == "Updated": return _W_UPDATED
         return _DEFAULT_W
 
-    col_rules = "\n".join(
-        f'.stock-table-wrap th:nth-child({i}), .stock-table-wrap td:nth-child({i}) '
-        f'{{ width: {_col_width(col)}px; max-width: {_col_width(col)}px; }}'
-        for i, col in enumerate(page_df.columns, start=1)
-    )
+    # <colgroup> is the authoritative, browser-consistent way to fix column
+    # widths on a table-layout:fixed table — nth-child width rules on th/td
+    # measured 2-9px off their intended value (pandas Styler's own inline
+    # per-cell styles were interfering); colgroup isn't subject to that.
+    colgroup = "<colgroup>" + "".join(
+        f'<col style="width:{_col_width(col)}px">' for col in page_df.columns
+    ) + "</colgroup>"
+    _table_open_end = html_table.index(">", html_table.index("<table")) + 1
+    html_table = html_table[:_table_open_end] + colgroup + html_table[_table_open_end:]
+
+    # table-layout:fixed only honors colgroup widths exactly when the table's
+    # own width is an explicit total, not "auto" — with "auto" the browser let
+    # columns balloon far past their <col> widths (measured 46-258px against
+    # a 48/57/150px spec). box-sizing:border-box is needed too, otherwise
+    # th/td padding (4px 8px) adds on top of the specified width instead of
+    # being included in it.
+    _table_total_w = sum(_col_width(col) for col in page_df.columns)
 
     st.markdown(
         f"""
@@ -230,15 +247,16 @@ def main() -> None:
             background: #888; border-radius: 8px; border: 3px solid #f0f0f0;
         }}
         .stock-table-wrap::-webkit-scrollbar-thumb:hover {{ background: #555; }}
-        .stock-table-wrap table {{ border-collapse: collapse; font-size: 13px; width: auto; table-layout: fixed; }}
+        .stock-table-wrap table {{
+            border-collapse: collapse; font-size: 13px; table-layout: fixed; width: {_table_total_w}px;
+        }}
         .stock-table-wrap th, .stock-table-wrap td {{
             padding: 4px 8px; white-space: nowrap; border-bottom: 1px solid #eee; text-align: left;
-            overflow: hidden; text-overflow: ellipsis;
+            overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;
         }}
         .stock-table-wrap th {{
             position: sticky; top: 0; background: #fff; z-index: 1; border-bottom: 2px solid #ccc;
         }}
-        {col_rules}
         </style>
         """,
         unsafe_allow_html=True,
