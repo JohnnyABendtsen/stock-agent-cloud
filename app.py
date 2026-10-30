@@ -5,6 +5,8 @@ GitHub Actions cron job (update_data.py) — no user's PC needs to be on for the
 data to refresh. Filter logic is byte-identical to the desktop app's Filters tab
 (reuses data.filters_config directly), so behaviour never drifts between the two.
 """
+import json
+
 import pandas as pd
 import streamlit as st
 
@@ -28,32 +30,69 @@ def load_dynamic_options() -> dict[str, list[str]]:
     }
 
 
-def build_settings_from_sidebar(rows: list[dict], dyn_options: dict[str, list[str]]) -> dict:
+def _load_filters_from_url() -> dict:
+    """Each visitor's own filter choices live in their URL's query string (?f=...),
+    not a shared file — a shared file (like the desktop app's filters.json) would
+    mean one visitor's filters silently change what every other visitor sees.
+    URL-based state survives a page reload/revisit and is naturally per-browser;
+    it also makes a filtered view bookmarkable/shareable, which the desktop
+    app's local file can't do either."""
+    defaults = filters_config._build_defaults()
+    raw = st.query_params.get("f")
+    if not raw:
+        return defaults
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError("expected dict")
+        for k, v in defaults.items():
+            if k not in data:
+                data[k] = v
+        filters_config._migrate_categorical(data)  # tolerate an older ?f= shape
+        return data
+    except Exception:
+        return defaults
+
+
+def build_settings_from_sidebar(
+    rows: list[dict], dyn_options: dict[str, list[str]], initial: dict
+) -> dict:
     settings = filters_config._build_defaults()
 
     st.sidebar.header("Numeric Thresholds")
     for key, label, db_field, direction, default, mn, mx, scale in filters_config.NUMERIC_SPEC:
-        enabled = st.sidebar.checkbox(label, key=f"cb_{key}", value=False)
+        init = initial.get(key, {"enabled": False, "value": default})
+        enabled = st.sidebar.checkbox(label, key=f"cb_{key}", value=init.get("enabled", False))
         val = st.sidebar.number_input(
-            label, min_value=float(mn), max_value=float(mx), value=float(default),
+            label, min_value=float(mn), max_value=float(mx),
+            value=float(init.get("value", default)),
             step=(1.0 if scale == 1 else 0.5), key=f"num_{key}", label_visibility="collapsed",
         )
         settings[key] = {"enabled": enabled, "value": val}
 
     st.sidebar.header("Categorical Filters")
     for key, label, db_field, all_values in filters_config.CATEGORICAL_SPEC:
-        enabled = st.sidebar.checkbox(f"Enable: {label}", key=f"cb_{key}", value=False)
-        picked = st.sidebar.multiselect(label, options=all_values, default=[], key=f"cat_{key}")
+        init = initial.get(key, {"enabled": False, "values": []})
+        enabled = st.sidebar.checkbox(f"Enable: {label}", key=f"cb_{key}", value=init.get("enabled", False))
+        picked = st.sidebar.multiselect(
+            label, options=all_values, default=init.get("values", []), key=f"cat_{key}",
+        )
         settings[key] = {"enabled": enabled, "values": picked}
 
     st.sidebar.header("Data Filters")
     for key, label, db_field, supports_hide in filters_config.DYNAMIC_CATEGORICAL_SPEC:
-        enabled = st.sidebar.checkbox(f"Enable: {label}", key=f"cb_dyn_{key}", value=False)
+        init = initial.get(key, {"enabled": False, "values": [], "hide_blank": False})
+        enabled = st.sidebar.checkbox(f"Enable: {label}", key=f"cb_dyn_{key}", value=init.get("enabled", False))
         options = dyn_options.get(key, [])
-        picked = st.sidebar.multiselect(label, options=options, default=[], key=f"dyn_{key}")
+        default_picked = [v for v in init.get("values", []) if v in options]
+        picked = st.sidebar.multiselect(
+            label, options=options, default=default_picked, key=f"dyn_{key}",
+        )
         hide_blank = False
         if supports_hide:
-            hide_blank = st.sidebar.checkbox(f"{label}: hide blank/Unknown", key=f"hide_{key}", value=False)
+            hide_blank = st.sidebar.checkbox(
+                f"{label}: hide blank/Unknown", key=f"hide_{key}", value=init.get("hide_blank", False),
+            )
         settings[key] = {"enabled": enabled, "values": picked, "hide_blank": hide_blank}
 
     return settings
@@ -115,7 +154,13 @@ def main() -> None:
         st.warning("No data yet — the scheduled update hasn't run, or hasn't finished, yet.")
         return
 
-    settings = build_settings_from_sidebar(rows, dyn_options)
+    initial_filters = _load_filters_from_url()
+    settings = build_settings_from_sidebar(rows, dyn_options, initial_filters)
+    if settings != initial_filters:
+        try:
+            st.query_params["f"] = json.dumps(settings, separators=(",", ":"))
+        except Exception:
+            pass  # URL sync is a convenience, never worth failing the page over
     visible = filters_config.apply(rows, settings)
 
     search = st.text_input("Search ticker, name, industry…", "")
